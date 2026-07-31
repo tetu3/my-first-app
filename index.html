@@ -1,11 +1,373 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ja">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>横スクロール アクションゲーム</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      font-family: "Segoe UI", "Noto Sans JP", sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      background: linear-gradient(135deg, #08111f, #142b49 55%, #2d426d);
+      color: #f8fbff;
+    }
+
+    .game-shell {
+      width: min(96vw, 980px);
+      padding: 24px;
+      border-radius: 24px;
+      background: rgba(5, 12, 24, 0.86);
+      box-shadow: 0 24px 55px rgba(0, 0, 0, 0.35);
+      border: 1px solid rgba(255,255,255,0.12);
+    }
+
+    h1 {
+      margin: 0 0 8px;
+      font-size: clamp(1.6rem, 2.4vw, 2.2rem);
+    }
+
+    p {
+      margin: 0 0 16px;
+      line-height: 1.6;
+      color: #cfe0ff;
+    }
+
+    canvas {
+      width: 100%;
+      height: auto;
+      display: block;
+      border-radius: 18px;
+      border: 2px solid rgba(255,255,255,0.22);
+      background: linear-gradient(180deg, #8fd7ff 0%, #c9f0ff 45%, #d7ffe0 100%);
+    }
+
+    .hud {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 12px;
+      font-weight: 700;
+      letter-spacing: 0.03em;
+    }
+
+    button {
+      margin-top: 12px;
+      border: none;
+      border-radius: 999px;
+      padding: 10px 16px;
+      background: linear-gradient(90deg, #4cb7ff, #2f7cff);
+      color: white;
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+      box-shadow: 0 8px 18px rgba(47, 124, 255, 0.25);
+    }
+
+    button:hover { transform: translateY(-1px); }
+  </style>
 </head>
 <body>
-    ようこそ私のpageへ!
+  <main class="game-shell">
+    <h1>横スクロール アクションゲーム</h1>
+    <p>スペースまたは↑キーでジャンプ。コインを集めてスコアを伸ばし、障害物に当たるとゲームオーバーです。</p>
+    <canvas id="game" width="960" height="360"></canvas>
+    <div class="hud">
+      <span id="score">スコア: 0</span>
+      <span id="best">ベスト: 0</span>
+    </div>
+    <button id="restart">もう一度遊ぶ</button>
+  </main>
+
+  <script>
+    const canvas = document.getElementById("game");
+    const ctx = canvas.getContext("2d");
+    const scoreEl = document.getElementById("score");
+    const bestEl = document.getElementById("best");
+    const restartBtn = document.getElementById("restart");
+
+    const GRAVITY = 0.45;
+    const JUMP_FORCE = -10.5;
+    const GROUND_Y = canvas.height - 60;
+    const PLAYER_W = 34;
+    const PLAYER_H = 44;
+
+    let player = {
+      x: 120,
+      y: GROUND_Y - PLAYER_H,
+      vy: 0,
+      width: PLAYER_W,
+      height: PLAYER_H,
+      grounded: true,
+    };
+
+    let obstacles = [];
+    let coins = [];
+    let score = 0;
+    let bestScore = Number(localStorage.getItem("sideScrollBest") || 0);
+    let spawnTimer = 0;
+    let coinTimer = 0;
+    let speed = 4.2;
+    let gameOver = false;
+    let lastTime = 0;
+
+    const keys = { jump: false };
+
+    function resetGame() {
+      player = {
+        x: 120,
+        y: GROUND_Y - PLAYER_H,
+        vy: 0,
+        width: PLAYER_W,
+        height: PLAYER_H,
+        grounded: true,
+      };
+      obstacles = [];
+      coins = [];
+      score = 0;
+      spawnTimer = 0;
+      coinTimer = 0;
+      speed = 4.2;
+      gameOver = false;
+      lastTime = 0;
+    }
+
+    function jump() {
+      if (player.grounded && !gameOver) {
+        player.vy = JUMP_FORCE;
+        player.grounded = false;
+      }
+    }
+
+    function spawnObstacle() {
+      const type = Math.random() > 0.55 ? "block" : "spike";
+      const height = type === "block" ? 32 : 28;
+      obstacles.push({
+        x: canvas.width + 24,
+        y: GROUND_Y - height,
+        width: type === "block" ? 30 : 26,
+        height,
+        type,
+      });
+    }
+
+    function spawnCoin() {
+      coins.push({
+        x: canvas.width + 24,
+        y: GROUND_Y - 68 - Math.random() * 70,
+        radius: 10,
+      });
+    }
+
+    function update(delta) {
+      if (gameOver) {
+        updateHud();
+        return;
+      }
+
+      score += delta * 0.12;
+      speed += delta * 0.0015;
+      spawnTimer -= delta;
+      coinTimer -= delta;
+
+      if (spawnTimer <= 0) {
+        spawnObstacle();
+        spawnTimer = 70 + Math.random() * 40;
+      }
+
+      if (coinTimer <= 0) {
+        spawnCoin();
+        coinTimer = 110 + Math.random() * 70;
+      }
+
+      player.vy += GRAVITY;
+      player.y += player.vy;
+
+      if (player.y >= GROUND_Y - player.height) {
+        player.y = GROUND_Y - player.height;
+        player.vy = 0;
+        player.grounded = true;
+      } else {
+        player.grounded = false;
+      }
+
+      obstacles.forEach((obstacle) => {
+        obstacle.x -= speed + delta * 0.04;
+      });
+
+      coins.forEach((coin) => {
+        coin.x -= speed + delta * 0.03;
+      });
+
+      obstacles = obstacles.filter((obstacle) => obstacle.x + obstacle.width > -20);
+      coins = coins.filter((coin) => coin.x + coin.radius > -20);
+
+      for (const obstacle of obstacles) {
+        const hit =
+          player.x < obstacle.x + obstacle.width &&
+          player.x + player.width > obstacle.x &&
+          player.y < obstacle.y + obstacle.height &&
+          player.y + player.height > obstacle.y;
+
+        if (hit) {
+          gameOver = true;
+          bestScore = Math.max(bestScore, Math.floor(score));
+          localStorage.setItem("sideScrollBest", String(bestScore));
+          break;
+        }
+      }
+
+      for (let i = coins.length - 1; i >= 0; i -= 1) {
+        const coin = coins[i];
+        const hit = Math.hypot(player.x + player.width / 2 - coin.x, player.y + player.height / 2 - coin.y) < 24;
+        if (hit) {
+          score += 16;
+          coins.splice(i, 1);
+        }
+      }
+
+      updateHud();
+    }
+
+    function updateHud() {
+      scoreEl.textContent = `スコア: ${Math.floor(score)}`;
+      bestEl.textContent = `ベスト: ${bestScore}`;
+    }
+
+    function drawBackground() {
+      const sky = ctx.createLinearGradient(0, 0, 0, canvas.height);
+      sky.addColorStop(0, "#8fd7ff");
+      sky.addColorStop(0.55, "#d6f2ff");
+      sky.addColorStop(1, "#efffdc");
+      ctx.fillStyle = sky;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      ctx.fillStyle = "rgba(255,255,255,0.85)";
+      for (let i = 0; i < 5; i += 1) {
+        const x = 120 + i * 180;
+        const y = 55 + (i % 2) * 25;
+        ctx.beginPath();
+        ctx.arc(x, y, 22, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      ctx.fillStyle = "#81c784";
+      ctx.beginPath();
+      ctx.moveTo(0, 270);
+      ctx.lineTo(150, 220);
+      ctx.lineTo(260, 250);
+      ctx.lineTo(380, 210);
+      ctx.lineTo(520, 245);
+      ctx.lineTo(680, 220);
+      ctx.lineTo(960, 265);
+      ctx.lineTo(960, 360);
+      ctx.lineTo(0, 360);
+      ctx.closePath();
+      ctx.fill();
+
+      ctx.fillStyle = "#5b8c4d";
+      ctx.fillRect(0, GROUND_Y, canvas.width, 60);
+      ctx.fillStyle = "#7ebc6a";
+      for (let x = 0; x < canvas.width + 20; x += 36) {
+        ctx.fillRect(x + (Date.now() / 100) % 36, GROUND_Y + 8, 18, 18);
+      }
+    }
+
+    function drawPlayer() {
+      ctx.fillStyle = "#2d6cdf";
+      ctx.fillRect(player.x, player.y, player.width, player.height);
+      ctx.fillStyle = "#fef7d6";
+      ctx.fillRect(player.x + 8, player.y + 11, 8, 8);
+      ctx.fillRect(player.x + 18, player.y + 11, 8, 8);
+    }
+
+    function drawObstacles() {
+      obstacles.forEach((obstacle) => {
+        ctx.fillStyle = obstacle.type === "block" ? "#ef4c4c" : "#f4a261";
+        ctx.fillRect(obstacle.x, obstacle.y, obstacle.width, obstacle.height);
+        if (obstacle.type === "spike") {
+          ctx.beginPath();
+          ctx.moveTo(obstacle.x, obstacle.y + obstacle.height);
+          ctx.lineTo(obstacle.x + obstacle.width / 2, obstacle.y);
+          ctx.lineTo(obstacle.x + obstacle.width, obstacle.y + obstacle.height);
+          ctx.closePath();
+          ctx.fill();
+        }
+      });
+    }
+
+    function drawCoins() {
+      coins.forEach((coin) => {
+        ctx.beginPath();
+        ctx.arc(coin.x, coin.y, coin.radius, 0, Math.PI * 2);
+        ctx.fillStyle = "#f4d03f";
+        ctx.fill();
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = "#b8860b";
+        ctx.stroke();
+      });
+    }
+
+    function drawOverlay() {
+      if (!gameOver) return;
+      ctx.fillStyle = "rgba(4, 8, 17, 0.55)";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = "#fdfdfd";
+      ctx.font = "bold 44px 'Segoe UI', sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText("ゲームオーバー", canvas.width / 2, canvas.height / 2 - 12);
+      ctx.font = "24px 'Segoe UI', sans-serif";
+      ctx.fillText("Enter または 画面タップで再挑戦", canvas.width / 2, canvas.height / 2 + 28);
+      ctx.textAlign = "left";
+    }
+
+    function draw() {
+      drawBackground();
+      drawCoins();
+      drawObstacles();
+      drawPlayer();
+      drawOverlay();
+    }
+
+    function loop(timestamp) {
+      if (!lastTime) lastTime = timestamp;
+      const delta = Math.min(2.2, (timestamp - lastTime) / 16.67);
+      lastTime = timestamp;
+      update(delta);
+      draw();
+      requestAnimationFrame(loop);
+    }
+
+    document.addEventListener("keydown", (event) => {
+      if (event.code === "Space" || event.code === "ArrowUp") {
+        event.preventDefault();
+        jump();
+      }
+      if (event.code === "Enter" && gameOver) {
+        resetGame();
+      }
+    });
+
+    canvas.addEventListener("pointerdown", () => {
+      if (gameOver) {
+        resetGame();
+      } else {
+        jump();
+      }
+    });
+
+    restartBtn.addEventListener("click", resetGame);
+
+    updateHud();
+    resetGame();
+    requestAnimationFrame(loop);
+  </script>
 </body>
 </html>
