@@ -17,17 +17,17 @@
       min-height: 100vh;
       display: grid;
       place-items: center;
-      background: linear-gradient(135deg, #08111f, #142b49 55%, #2d426d);
-      color: #f8fbff;
+      background: linear-gradient(135deg, #030617, #08193c 45%, #120f3d);
+      color: #f2f9ff;
     }
 
     .game-shell {
       width: min(96vw, 980px);
       padding: 24px;
       border-radius: 24px;
-      background: rgba(5, 12, 24, 0.86);
-      box-shadow: 0 24px 55px rgba(0, 0, 0, 0.35);
-      border: 1px solid rgba(255,255,255,0.12);
+      background: rgba(6, 9, 24, 0.88);
+      box-shadow: 0 24px 55px rgba(0, 0, 0, 0.45);
+      border: 1px solid rgba(104, 197, 255, 0.16);
     }
 
     h1 {
@@ -46,8 +46,8 @@
       height: auto;
       display: block;
       border-radius: 18px;
-      border: 2px solid rgba(255,255,255,0.22);
-      background: linear-gradient(180deg, #8fd7ff 0%, #c9f0ff 45%, #d7ffe0 100%);
+      border: 2px solid rgba(96, 190, 255, 0.24);
+      background: linear-gradient(180deg, #031022 0%, #092147 45%, #0f214d 100%);
     }
 
     .hud {
@@ -243,74 +243,121 @@
 
     function drawBackground() {
       const sky = ctx.createLinearGradient(0, 0, 0, canvas.height);
-      sky.addColorStop(0, "#8fd7ff");
-      sky.addColorStop(0.55, "#d6f2ff");
-      sky.addColorStop(1, "#efffdc");
+      sky.addColorStop(0, "#05102d");
+      sky.addColorStop(0.4, "#0c1f52");
+      sky.addColorStop(1, "#071428");
       ctx.fillStyle = sky;
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-      ctx.fillStyle = "rgba(255,255,255,0.85)";
-      for (let i = 0; i < 5; i += 1) {
-        const x = 120 + i * 180;
-        const y = 55 + (i % 2) * 25;
+      ctx.fillStyle = "rgba(255,255,255,0.15)";
+      for (let i = 0; i < 40; i += 1) {
+        const x = Math.random() * canvas.width;
+        const y = Math.random() * 120;
+        const radius = Math.random() * 1.7 + 0.8;
         ctx.beginPath();
-        ctx.arc(x, y, 22, 0, Math.PI * 2);
+        ctx.arc(x, y, radius, 0, Math.PI * 2);
         ctx.fill();
       }
 
-      ctx.fillStyle = "#81c784";
+      ctx.strokeStyle = "rgba(90, 190, 255, 0.16)";
+      ctx.lineWidth = 1;
+      for (let y = GROUND_Y - 24; y < canvas.height; y += 24) {
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(canvas.width, y);
+        ctx.stroke();
+      }
+      for (let x = 0; x < canvas.width; x += 48) {
+        ctx.beginPath();
+        ctx.moveTo(x, GROUND_Y - 24);
+        ctx.lineTo(x, canvas.height);
+        ctx.stroke();
+      }
+
+      ctx.fillStyle = "#113460";
       ctx.beginPath();
-      ctx.moveTo(0, 270);
-      ctx.lineTo(150, 220);
-      ctx.lineTo(260, 250);
-      ctx.lineTo(380, 210);
-      ctx.lineTo(520, 245);
-      ctx.lineTo(680, 220);
-      ctx.lineTo(960, 265);
+      ctx.moveTo(0, 280);
+      ctx.lineTo(180, 220);
+      ctx.lineTo(320, 260);
+      ctx.lineTo(450, 210);
+      ctx.lineTo(610, 250);
+      ctx.lineTo(760, 215);
+      ctx.lineTo(960, 270);
       ctx.lineTo(960, 360);
       ctx.lineTo(0, 360);
       ctx.closePath();
       ctx.fill();
 
-      ctx.fillStyle = "#5b8c4d";
-      ctx.fillRect(0, GROUND_Y, canvas.width, 60);
-      ctx.fillStyle = "#7ebc6a";
-      for (let x = 0; x < canvas.width + 20; x += 36) {
-        ctx.fillRect(x + (Date.now() / 100) % 36, GROUND_Y + 8, 18, 18);
+      ctx.fillStyle = "#0c1233";
+      for (let x = 80; x < canvas.width; x += 180) {
+        ctx.beginPath();
+        ctx.moveTo(x, 280);
+        ctx.lineTo(x + 36, 240);
+        ctx.lineTo(x + 72, 274);
+        ctx.lineTo(x + 54, 296);
+        ctx.closePath();
+        ctx.fill();
       }
+
+      ctx.fillStyle = "#142a52";
+      ctx.fillRect(0, GROUND_Y, canvas.width, 60);
+      ctx.fillStyle = "rgba(55, 190, 255, 0.18)";
+      ctx.fillRect(0, GROUND_Y + 36, canvas.width, 6);
     }
 
     function drawPlayer() {
-      ctx.fillStyle = "#2d6cdf";
+      const gradient = ctx.createLinearGradient(player.x, player.y, player.x, player.y + player.height);
+      gradient.addColorStop(0, "#33b1ff");
+      gradient.addColorStop(1, "#0c4be2");
+      ctx.fillStyle = gradient;
       ctx.fillRect(player.x, player.y, player.width, player.height);
-      ctx.fillStyle = "#fef7d6";
-      ctx.fillRect(player.x + 8, player.y + 11, 8, 8);
-      ctx.fillRect(player.x + 18, player.y + 11, 8, 8);
+
+      ctx.fillStyle = "rgba(255,255,255,0.8)";
+      ctx.fillRect(player.x + 6, player.y + 10, 6, 6);
+      ctx.fillRect(player.x + 22, player.y + 12, 6, 6);
+      ctx.strokeStyle = "rgba(68, 199, 255, 0.85)";
+      ctx.lineWidth = 3;
+      ctx.strokeRect(player.x + 2, player.y + 6, player.width - 4, player.height - 12);
     }
 
     function drawObstacles() {
       obstacles.forEach((obstacle) => {
-        ctx.fillStyle = obstacle.type === "block" ? "#ef4c4c" : "#f4a261";
-        ctx.fillRect(obstacle.x, obstacle.y, obstacle.width, obstacle.height);
-        if (obstacle.type === "spike") {
+        if (obstacle.type === "block") {
+          ctx.fillStyle = "#28538f";
+          ctx.fillRect(obstacle.x, obstacle.y, obstacle.width, obstacle.height);
+          ctx.strokeStyle = "rgba(84, 185, 255, 0.55)";
+          ctx.lineWidth = 2;
+          ctx.strokeRect(obstacle.x + 2, obstacle.y + 2, obstacle.width - 4, obstacle.height - 4);
+        } else {
+          ctx.fillStyle = "#d56cff";
           ctx.beginPath();
           ctx.moveTo(obstacle.x, obstacle.y + obstacle.height);
           ctx.lineTo(obstacle.x + obstacle.width / 2, obstacle.y);
           ctx.lineTo(obstacle.x + obstacle.width, obstacle.y + obstacle.height);
           ctx.closePath();
           ctx.fill();
+          ctx.fillStyle = "rgba(255,255,255,0.35)";
+          ctx.fillRect(obstacle.x + obstacle.width * 0.35, obstacle.y + obstacle.height * 0.4, obstacle.width * 0.3, obstacle.height * 0.45);
         }
       });
     }
 
     function drawCoins() {
       coins.forEach((coin) => {
+        const glow = ctx.createRadialGradient(coin.x, coin.y, coin.radius * 0.2, coin.x, coin.y, coin.radius * 1.8);
+        glow.addColorStop(0, "rgba(167, 255, 255, 0.9)");
+        glow.addColorStop(1, "rgba(20, 175, 255, 0)");
+        ctx.fillStyle = glow;
+        ctx.beginPath();
+        ctx.arc(coin.x, coin.y, coin.radius * 1.8, 0, Math.PI * 2);
+        ctx.fill();
+
         ctx.beginPath();
         ctx.arc(coin.x, coin.y, coin.radius, 0, Math.PI * 2);
-        ctx.fillStyle = "#f4d03f";
+        ctx.fillStyle = "#68d8ff";
         ctx.fill();
         ctx.lineWidth = 2;
-        ctx.strokeStyle = "#b8860b";
+        ctx.strokeStyle = "#8edcff";
         ctx.stroke();
       });
     }
